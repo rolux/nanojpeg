@@ -78,6 +78,27 @@ class JPEG():
             35, 36, 48, 49, 57, 58, 62, 63
         )
 
+    class _BitWriter():
+        """Allows for bit-wise accumulation of data"""
+        def __init__(self):
+            self._data = b""
+            self._bits = []
+        def _bits_to_int(self, bits):
+            val = 0
+            for bit in bits:
+                val = (val << 1) | bit
+            return val
+        def write(self, bits):
+            self._bits += bits
+            while len(self._bits) >= 8:
+                self._data += bytes([self._bits_to_int(self._bits[:8])])
+                self._bits = self._bits[8:]
+        def get_data(self, padding=1):
+            mod = len(self._bits) % 8
+            if mod:
+                self.write((8 - mod) * [padding])
+            return self._data
+
     class _BitReader():
         """Allows for bit-wise consumption of data"""
         def __init__(self, data):
@@ -99,27 +120,6 @@ class JPEG():
             self._index += i
             if self._index < 0 or self._index > 8 * len(self._data) - 1:
                 raise ValueError(f"Tried to seek to index {self._index}, which is out of bounds.")
-
-    class _BitWriter():
-        """Allows for bit-wise accumulation of data"""
-        def __init__(self):
-            self._data = b""
-            self._bits = []
-        def _bits_to_int(self, bits):
-            val = 0
-            for bit in bits:
-                val = (val << 1) | bit
-            return val
-        def write(self, bits):
-            self._bits += bits
-            while len(self._bits) >= 8:
-                self._data += bytes([self._bits_to_int(self._bits[:8])])
-                self._bits = self._bits[8:]
-        def get_data(self, padding=1):
-            mod = len(self._bits) % 8
-            if mod:
-                self.write((8 - mod) * [padding])
-            return self._data
 
     def _bits_to_int(self, bits):
         is_negative = bits[0] == 0
