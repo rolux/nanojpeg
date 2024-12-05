@@ -23,7 +23,7 @@ cd nanojpeg
 # Test encoder and decoder
 from nanojpeg import jpeg
 original = [
-    [(x, (x * y)//256, y) for x in range(256)]
+    [(x, x * y // 256, y) for x in range(256)]
     for y in range(256)
 ]
 jpeg.encode("test q=75 s=420.jpg", original)
