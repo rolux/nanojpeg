@@ -6,7 +6,7 @@ from scipy import fftpack, interpolate
 class JPEG():
 
     """
-    JPEG Encoder/Decoder
+    This is a simple JPEG Encoder/Decoder, written in Python, mostly for educational purposes.
     Supports baseline sequential DCT with Huffman coding and 4:4:4, 4:2:2 or 4:2:0 subsampling.
     Also implements the F4 algorithm for encoding a payload into the quantized AC coefficients.
     No Copyright () 2024 Robert Luxemburg. No rights reserved. This code is in the Public Domain.
@@ -20,7 +20,7 @@ class JPEG():
             0xFFD9: "EOI (End of image)",
             0xFFDA: "SOS (Start of scan)",
             0xFFDB: "DQT (Define quantization table)",
-            0xFFDD: "DRI (Define restart interval)",
+            0xFFDD: "DRI (Define restart interval)"
         }
         self._marker_names.update({
             0xFFE0 + i: f"APP{i} (Application {i})" for i in range(16)
@@ -34,11 +34,11 @@ class JPEG():
         for idx, tables in enumerate(qt):
             quality = (idx + 1) * 5
             self._qty[quality], self._qtc[quality] = tables
-        # Huffman table (DC luminance), from the JPEG Specification
+        # Huffman table (luminance DC), from the JPEG Specification
         self._htydc = (
             [], [0], [1, 2, 3, 4, 5], [6], [7], [8], [9], [10], [11], [], [], [], [], [], [], []
         )
-        # Huffman table (AC luminance), from the JPEG Specification
+        # Huffman table (luminance AC), from the JPEG Specification
         self._htyac = (
             [], [1, 2], [3], [0, 4, 17], [5, 18, 33], [49, 65], [6, 19, 81, 97], [7, 34, 113], [20,
             50, 129, 145, 161], [8, 35, 66, 177, 193], [21, 82, 209, 240], [36, 51, 98, 114], [],
@@ -50,11 +50,11 @@ class JPEG():
             198, 199, 200, 201, 202, 210, 211, 212, 213, 214, 215, 216, 217, 218, 225, 226, 227,
             228, 229, 230, 231, 232, 233, 234, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250]
         )
-        # Huffman table (DC chrominance), from the JPEG Specification
+        # Huffman table (chrominance DC), from the JPEG Specification
         self._htcdc = (
             [], [0, 1, 2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [], [], [], [], []
         )
-        # Huffman table (AC chrominance), from the JPEG Specification
+        # Huffman table (chrominance AC), from the JPEG Specification
         self._htcac = (
             [], [0, 1], [2], [3, 17], [4, 5, 33, 49], [6, 18, 65, 81], [7, 97, 113], [19, 34, 50,
             129], [8, 20, 66, 145, 161, 177, 193], [9, 35, 51, 82, 240], [21, 98, 114, 209], [10,
@@ -212,7 +212,7 @@ class JPEG():
 
     def _encode_dc(self, dc, bitwriter, table):
         """
-        1 entry: [ huffman(len(bits(dc))) ][ bits(dc) ]
+        1 entry: [ huffman(len(bits(dc))) ] [ bits(dc) ]
         Negative dc values are bit-flipped.
         """
         dc = [] if dc == 0 else self._int_to_bits(dc)
@@ -233,7 +233,6 @@ class JPEG():
         def runlength_encode(run, size, val):
             runsize = [int(c) for c in table[run * 16 + size]]
             bitwriter.write(runsize + val)
-        encoded = ""
         run = 0
         for idx, val in enumerate(ac):
             if val == 0:
@@ -276,7 +275,7 @@ class JPEG():
                 mod_bit = val % 2 if val > 0 else 1 - val % 2
                 try:
                     payload_bit = payload_reader.read(1)[0]
-                except ValueError:
+                except ValueError: # encoding complete
                     continue
                 if mod_bit != payload_bit:
                     block[idx] += (1, -1)[val > 0]
