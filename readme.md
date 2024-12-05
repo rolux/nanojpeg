@@ -39,7 +39,6 @@ image, metadata = jpeg.decode("test q=50 s=422.jpg", return_metadata=True)
 print(metadata["qt"])
 image, metadata = jpeg.decode("test q=95 s=444.jpg", return_metadata=True)
 print(metadata["qt"])
-print(metadata["ht"]) #### remove
 
 # Work with an existing image file
 import numpy as np
@@ -67,9 +66,8 @@ for filename in ("nanojpeg re-encoded.jpg", "nanojpeg re-encoded with payload.jp
     plt.close()
 
 # Extract the full nanojpeg source code from nanojpeg.jpg
-import zlib
 image, payload = jpeg.decode("nanojpeg.jpg", return_payload=True)
-open("nanojpeg payload.txt", "wb").write(zlib.decompress(payload))
+open("nanojpeg payload.txt", "wb").write(payload)
 ```
 
 ### The JPEG encoding TL;DR:
