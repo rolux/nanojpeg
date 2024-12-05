@@ -319,6 +319,7 @@ class JPEG():
         # Split into color components
         cids = cmeta.keys()
         cdata = {cid: image_data[:, :, i] for i, cid in enumerate(cids)}
+        # Split into blocks
         blocks = {cid: [] for cid in cids}
         for cid, meta in cmeta.items():
             if cid == 1 and subsampling == "4:2:0":
@@ -338,6 +339,7 @@ class JPEG():
                     for y in range(0, cdata[cid].shape[0], 8)
                     for x in range(0, cdata[cid].shape[1], 8)
                 ]
+        # Encode scan data
         bitwriter = self._BitWriter()
         prev_dc = {cid: None for cid in cids}
         htydc = self._parse_huffman_table(self._htydc, mode="encode")
@@ -517,9 +519,9 @@ class JPEG():
                     for i in range(n_components):
                         cid, (sfh, sfv), qtid = read(">B(B)B")
                         cmeta[cid] = {
-                            "sfh": sfh,   # Sampling factor horizontal
-                            "sfv": sfv,   # Sampling factor vertical
-                            "qtid": qtid, # Quantization table ID
+                            "sfh": sfh,  # Sampling factor horizontal
+                            "sfv": sfv,  # Sampling factor vertical
+                            "qtid": qtid # Quantization table ID
                         }
                         if i == 0:
                             subsampling = ("4:4:4", "4:2:2", "4:2:0")[sfh + sfv - 2]
@@ -604,7 +606,7 @@ class JPEG():
         if return_metadata:
             metadata["ac"] = dict(zip(*np.unique(metadata["ac"], return_counts=True)))
             metadata["nz"] = dict(zip(*np.unique(metadata["nz"], return_counts=True)))
-        # Concatenate
+        # Concatenate blocks
         cdata = {}
         for cid, meta in cmeta.items():
             w, h = image_width // mcu_block_size[0], image_height // mcu_block_size[1]
