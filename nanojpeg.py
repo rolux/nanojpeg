@@ -388,20 +388,23 @@ class JPEG():
 
             write_segment("SOI (Start of image)")
 
+            marker_name = "DQT (Define quantization table)"
             for i, qt in enumerate((self._qty[quality], self._qtc[quality])):
                 # Using struct.pack(">B", x) rather than bytes([x]) for consistency and readablility
                 precision, table_id = 0, i
                 data = struct.pack(">B", precision * 16 + table_id)
                 data += struct.pack(">" + 64 * "B", *qt.reshape((64,)))
-                write_segment("DQT (Define quantization table)", data)
+                write_segment(marker_name, data)
 
+            marker_name = "SOF (Start of frame)"
             precision = 8
             n_components = len(cmeta)
             data = struct.pack(">BHHB", precision, image_height, image_width, n_components)
             for cid, meta in cmeta.items():
                 data += struct.pack(">BBB", cid, meta["sfh"] * 16 + meta["sfv"], meta["qtid"])
-            write_segment("SOF (Start of frame)", data)
+            write_segment(marker_name, data)
 
+            marker_name = "DHT (Define Huffman table)"
             for i, ht in enumerate((self._htydc, self._htyac, self._htcdc, self._htcac)):
                 table_class = i % 2
                 table_id = i // 2
@@ -410,8 +413,9 @@ class JPEG():
                 data += struct.pack(">" + 16 * "B", *n_codes)
                 for i, n in enumerate(n_codes):
                     data += struct.pack(">" + n * "B", *ht[i])
-                write_segment("DHT (Define Huffman table)", data)
+                write_segment(marker_name, data)
 
+            marker_name = "SOS (Start of scan)"
             header_length = 6 + 2 * n_components
             data = struct.pack(">HB", header_length, n_components)
             for i in range(n_components):
@@ -427,7 +431,7 @@ class JPEG():
                 ">BBB", start_of_selection, end_of_selection,
                 bit_position_high * 16 + bit_position_low
             )
-            write_segment("SOS (Start of scan)", data, scan_data)
+            write_segment(marker_name, data, scan_data)
 
             write_segment("EOI (End of image)")
 
