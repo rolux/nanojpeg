@@ -208,7 +208,7 @@ class JPEG():
             code += str(bitreader.read(1)[0])
             if code in table:
                 return table[code]
-        raise ValueError(f"Code length > {max_len} ({code})")
+        raise ValueError(f"Huffman code length is larger than {max_len} ({code})")
 
     def _encode_dc(self, dc, bitwriter, table):
         """
@@ -412,7 +412,6 @@ class JPEG():
                     data += struct.pack(">" + n * "B", *ht[i])
                 write_segment("DHT (Define Huffman table)", data)
 
-            n_components = 3
             header_length = 6 + 2 * n_components
             data = struct.pack(">HB", header_length, n_components)
             for i in range(n_components):
@@ -502,6 +501,14 @@ class JPEG():
 
                 elif marker_name == "SOF (Start of frame)":
                     precision, image_height, image_width, n_components = read(">BHHB")
+                    if precision != 8:
+                        raise ValueError(
+                            f"Only 8-bit (not {precision}-bit) precision is supported."
+                        )
+                    if n_components != 3:
+                        raise ValueError(
+                            f"Only 3 (not {n_components}) color channels are supported."
+                        )
                     cmeta = {}
                     for i in range(n_components):
                         cid, (sfh, sfv), qtid = read(">B(B)B")
@@ -528,6 +535,10 @@ class JPEG():
 
                 elif marker_name == "SOS (Start of scan)":
                     header_length, n_components = read(">HB")
+                    if n_components != 3:
+                        raise ValueError(
+                            f"Only 3 (not {n_components}) color channels are supported."
+                        )
                     for i in range(n_components):
                         cid, (table_dc, table_ac) = read(">B(B)")
                         cmeta[cid].update({
