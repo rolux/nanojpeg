@@ -233,12 +233,13 @@ class JPEG():
         def runlength_encode(run, size, val):
             runsize = [int(c) for c in table[run * 16 + size]]
             bitwriter.write(runsize + val)
+        last_zero = np.max(np.nonzero(ac == 0)) if 0 in ac else None
         run = 0
         for idx, val in enumerate(ac):
+            if idx == last_zero:
+                runlength_encode(0, 0, []) # EOB
+                break
             if val == 0:
-                if all(v == 0 for v in ac[idx:]):
-                    runlength_encode(0, 0, []) # EOB
-                    break
                 run += 1
                 if run == 16:
                     runlength_encode(15, 0, []) # ZRL
