@@ -31,7 +31,7 @@ image = jpeg.decode("test q=75 s=420.jpg")
 jpeg.encode("test q=75 s=420 decoded and re-encoded.jpg", image)
 
 # Try different quality and subsampling settings
-jpeg.encode("test q=50 s=422.jpg", original, quality=25, subsampling="4:2:2")
+jpeg.encode("test q=50 s=422.jpg", original, quality=50, subsampling="4:2:2")
 jpeg.encode("test q=95 s=444.jpg", original, quality=95, subsampling="4:4:4")
 
 # Export the quantization tables
