@@ -23,7 +23,10 @@ class JPEG():
             0xFFDD: "DRI (Define restart interval)"
         }
         self._marker_names.update({
-            0xFFE0 + i: f"APP{i} (Application {i})" for i in range(16)
+            0xFFD0 + i: f"RST{i} (Restart)" for i in range(8)
+        })
+        self._marker_names.update({
+            0xFFE0 + i: f"APP{i} (Application)" for i in range(16)
         })
         self._marker_values = {v: k for k, v in self._marker_names.items()}
         # Quantization tables (luminance), from PIL/libjpeg
@@ -88,15 +91,17 @@ class JPEG():
             for bit in bits:
                 val = (val << 1) | bit
             return val
-        def write(self, bits):
+        def write(self, bits, stuff=False):
             self._bits += bits
             while len(self._bits) >= 8:
                 self._data += bytes([self._bits_to_int(self._bits[:8])])
+                if stuff and self._data[-1:] == b"\xFF":
+                    self._data += b"\x00"
                 self._bits = self._bits[8:]
-        def get_data(self, padding=1):
-            mod = len(self._bits) % 8
-            if mod:
-                self.write((8 - mod) * [padding])
+        def pad_to_next_byte(self, padding, stuff=False):
+            if mod := len(self._bits) % 8:
+                self.write((8 - mod) * [padding], stuff)
+        def get_data(self):
             return self._data
 
     class _BitReader():
@@ -120,6 +125,9 @@ class JPEG():
             self._index += i
             if self._index < 0 or self._index > 8 * len(self._data) - 1:
                 raise ValueError(f"Tried to seek to index {self._index}, which is out of bounds.")
+        def seek_to_next_byte(self):
+            if mod := self._index % 8:
+                self.seek(8 - mod)
 
     def _bits_to_int(self, bits):
         is_negative = bits[0] == 0
@@ -217,7 +225,7 @@ class JPEG():
         """
         dc = [] if dc == 0 else self._int_to_bits(dc)
         size = [int(c) for c in table[len(dc)]]
-        bitwriter.write(size + dc)
+        bitwriter.write(size + dc, stuff=True)
 
     def _decode_dc(self, bitreader, table):
         size = self._huffman_decode(bitreader, table)
@@ -232,11 +240,12 @@ class JPEG():
         """
         def runlength_encode(run, size, val):
             runsize = [int(c) for c in table[run * 16 + size]]
-            bitwriter.write(runsize + val)
-        last_zero = np.max(np.nonzero(ac == 0)) if 0 in ac else None
+            bitwriter.write(runsize + val, stuff=True)
+        nonzero = np.nonzero(ac)[0]
+        eob = 0 if nonzero.size == 0 else np.max(nonzero) + 1
         run = 0
         for idx, val in enumerate(ac):
-            if idx == last_zero:
+            if idx == eob:
                 runlength_encode(0, 0, []) # EOB
                 break
             if val == 0:
@@ -290,7 +299,8 @@ class JPEG():
                 payload_writer.write([val % 2 if val > 0 else 1 - val % 2])
 
     def encode(
-        self, filename, image_data, quality=75, subsampling="4:2:0", payload=None
+        self, filename, image_data, quality=75, subsampling="4:2:0",
+        restart_interval=None, payload=None
     ):
 
         if quality < 5 or quality > 95 or quality % 5:
@@ -349,6 +359,7 @@ class JPEG():
         htcac = self._parse_huffman_table(self._htcac, mode="encode")
         mcu_block_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
         n_mcu_blocks = image_width // mcu_block_size[0] * image_height // mcu_block_size[1]
+
         for i_mcu in range(n_mcu_blocks):
             for cid, meta in cmeta.items():
                 n_blocks = meta["sfh"] * meta["sfv"]
@@ -375,8 +386,17 @@ class JPEG():
                     # Huffman/RLE (AC)
                     ht = (htyac, htcac)[meta["htdc"]]
                     self._encode_ac(ac, bitwriter, ht)
+            if (
+                restart_interval and i_mcu < n_mcu_blocks - 1
+                and i_mcu % restart_interval == restart_interval - 1
+            ):
+                bitwriter.pad_to_next_byte(1, stuff=True)
+                restart_counter = i_mcu // restart_interval % 8
+                bitwriter.write(self._int_to_bits(0xFFD0 + restart_counter))
+                prev_dc = {cid: None for cid in cids}
+
+        bitwriter.pad_to_next_byte(1)
         scan_data = bitwriter.get_data()
-        scan_data = scan_data.replace(b"\xFF", b"\xFF\x00")
 
         with open(filename, "wb") as f:
 
@@ -418,6 +438,11 @@ class JPEG():
                     data += struct.pack(">" + n * "B", *ht[i])
                 write_segment(marker_name, data)
 
+            marker_name = "DRI (Define restart interval)"
+            if restart_interval:
+                data = struct.pack(">H", restart_interval)
+                write_segment(marker_name, data)
+
             marker_name = "SOS (Start of scan)"
             header_length = 6 + 2 * n_components
             data = struct.pack(">HB", header_length, n_components)
@@ -451,6 +476,7 @@ class JPEG():
 
         qt = {} # Quantization tables
         ht = {} # Huffman tables
+        restart_interval = None
         if return_metadata:
             metadata = {"markers": [], "qt": {}, "ht": {}, "ac": [], "nz": []}
         if return_payload:
@@ -538,7 +564,6 @@ class JPEG():
 
                 elif marker_name == "DRI (Define restart interval)":
                     restart_interval = read(">H")[0]
-                    raise NotImplementedError("Restart markers are not implemented.")
 
                 elif marker_name == "SOS (Start of scan)":
                     header_length, n_components = read(">HB")
@@ -571,6 +596,7 @@ class JPEG():
         mcu_blocks = {cid: [] for cid in cids}
         mcu_block_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
         n_mcu_blocks = image_width // mcu_block_size[0] * image_height // mcu_block_size[1]
+
         for i_mcu in range(n_mcu_blocks):
             for cid, meta in cmeta.items():
                 blocks = []
@@ -604,6 +630,26 @@ class JPEG():
                     mcu_blocks[cid].append(self._concatenate(np.array(blocks), (2, 1)))
                 elif n_blocks == 4:
                     mcu_blocks[cid].append(self._concatenate(np.array(blocks), (2, 2)))
+            if (
+                restart_interval and i_mcu < n_mcu_blocks - 1
+                and i_mcu % restart_interval == restart_interval - 1
+            ):
+                bitreader.seek_to_next_byte()
+                restart_marker = self._bits_to_int(bitreader.read(16))
+                restart_counter = i_mcu // restart_interval % 8
+                expected = 0xFFD0 + restart_counter
+                if restart_marker != expected:
+                    if restart_marker < 0xFFD0 or restart_marker > 0xFFD7:
+                        raise ValueError("Missing restart marker.")
+                    else:
+                        raise ValueError(
+                            f"Incorrect restart marker. Expected {expected:04X}, "
+                            f"got {restart_marker:04X}."
+                        )
+                if return_metadata:
+                    metadata["markers"].insert(-1, self._marker_names[restart_marker])
+                prev_dc = {cid: None for cid in cids}
+
         if return_metadata:
             metadata["ac"] = dict(zip(*np.unique(metadata["ac"], return_counts=True)))
             metadata["nz"] = dict(zip(*np.unique(metadata["nz"], return_counts=True)))
