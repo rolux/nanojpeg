@@ -196,7 +196,7 @@ class JPEG():
     def _idct(self, arr):
         return fftpack.idct(fftpack.idct(arr.T, norm="ortho").T, norm="ortho")
 
-    def _parse_huffman_table(self, table, mode="decode"):
+    def _parse_huffman_table(self, table, mode):
         assert(mode in ("decode", "encode"))
         data = {}
         code = 0
