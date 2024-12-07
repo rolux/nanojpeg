@@ -1,3 +1,4 @@
+import re
 import struct
 import numpy as np
 from scipy import fftpack, interpolate
@@ -592,7 +593,8 @@ class JPEG():
                 metadata["markers"].append(marker_name)
 
         # Decode scan data
-        scan_data = scan_data.replace(b"\xFF\x00", b"\xFF")
+        parts = re.split(b"([\xFF\xD0-\xD7])", scan_data)
+        scan_data = b"".join(re.sub(b"\xFF\x00", b"\xFF", part) for part in parts)
         bitreader = self._BitReader(scan_data)
         cids = cmeta.keys()
         prev_dc = {cid: None for cid in cids}
