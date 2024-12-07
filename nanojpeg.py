@@ -643,9 +643,9 @@ class JPEG():
                 if n_blocks == 1:
                     mcus[cid].append(blocks[0])
                 elif n_blocks == 2:
-                    mcus[cid].append(np.hstack(np.array(blocks)))
+                    mcus[cid].append(np.hstack(blocks))
                 elif n_blocks == 4:
-                    mcus[cid].append(self._concatenate(np.array(blocks), (2, 2)))
+                    mcus[cid].append(self._concatenate(blocks, (2, 2)))
             if (
                 restart_interval and i_mcu < n_mcus - 1
                 and i_mcu % restart_interval == restart_interval - 1
