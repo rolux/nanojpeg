@@ -15,6 +15,7 @@ No Copyright () 2024 Robert Luxemburg. No rights reserved. This code is in the P
 ```
 git clone https://github.com/rolux/nanojpeg.git
 cd nanojpeg
+pip install -r requirements.txt
 ```
 
 ### Usage:
