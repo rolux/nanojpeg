@@ -149,11 +149,21 @@ class JPEG():
         return [1 - bit for bit in bits] if is_negative else bits
 
     def _concatenate(self, arrs, wh):
+        """Arrange w*h arrays of the same shape in a w-by-h grid"""
         w, h = wh
-        rows = np.array([np.concatenate(arrs[i * w:(i + 1) * w], axis=1) for i in range(h)])
-        return np.concatenate(rows, axis=0)
+        rows = np.array([np.hstack(arrs[i * w:(i + 1) * w]) for i in range(h)])
+        return np.vstack(rows)
+
+    def _pad(self, arr, block_shape):
+        """Pad array to a multiple of block shape by repeating the last element"""
+        for axis in (1, 0):
+            if mod := arr.shape[axis] % block_shape[axis]:
+                n = block_shape[axis] - mod
+                arr = np.repeat(arr, (arr.shape[axis] - 1) * [1] + [1 + n], axis=axis)
+        return arr
 
     def _resample(self, arr, sf):
+        """Resample array according to horizontal and vertical scaling factor"""
         h, w = arr.shape
         sfh, sfv = sf
         # This is correct, x/y are not coordinates.
@@ -311,8 +321,6 @@ class JPEG():
 
         image_data = np.array(image_data)
         image_height, image_width = image_data.shape[:2]
-        if image_height % 16 or image_width % 16:
-            raise ValueError("Image width and height must be multiples of 16.")
         if quality < 5 or quality > 95 or quality % 5:
             raise ValueError("Quality must be a multiple of 5 between 5 and 95.")
         if subsampling not in ("4:4:4", "4:2:2", "4:2:0"):
@@ -325,10 +333,13 @@ class JPEG():
             2: {"sfh": 1, "sfv": 1, "qtid": 1, "htdc": 1, "htac": 1}, # Cb
             3: {"sfh": 1, "sfv": 1, "qtid": 1, "htdc": 1, "htac": 1}  # Cr
         }
+        mcu_shape = {"4:4:4": (8, 8), "4:2:2": (8, 16), "4:2:0": (16, 16)}[subsampling]
         if payload:
             payload = struct.pack(">HH", 0xFFE0, len(payload) + 2) + payload
             payload_reader = self._BitReader(payload)
 
+        # Pad
+        image_data = self._pad(image_data, mcu_shape)
         # RGB to YCbCr
         image_data = self._ycbcr(image_data)
         # Shift
@@ -363,8 +374,7 @@ class JPEG():
         htyac = self._parse_huffman_table(self._htyac, mode="encode")
         htcdc = self._parse_huffman_table(self._htcdc, mode="encode")
         htcac = self._parse_huffman_table(self._htcac, mode="encode")
-        mcu_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
-        n_mcus = image_width // mcu_size[0] * image_height // mcu_size[1]
+        n_mcus = image_data.shape[0] // mcu_shape[0] * image_data.shape[1] // mcu_shape[1]
 
         for i_mcu in range(n_mcus):
             for cid, meta in cmeta.items():
@@ -600,8 +610,8 @@ class JPEG():
         cids = cmeta.keys()
         prev_dc = {cid: None for cid in cids}
         mcus = {cid: [] for cid in cids}
-        mcu_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
-        n_mcus = image_width // mcu_size[0] * image_height // mcu_size[1]
+        mcu_shape = {"4:4:4": (8, 8), "4:2:2": (8, 16), "4:2:0": (16, 16)}[subsampling]
+        n_mcus = int(np.ceil(image_height / mcu_shape[0]) * np.ceil(image_width / mcu_shape[1]))
 
         for i_mcu in range(n_mcus):
             for cid, meta in cmeta.items():
@@ -633,7 +643,7 @@ class JPEG():
                 if n_blocks == 1:
                     mcus[cid].append(blocks[0])
                 elif n_blocks == 2:
-                    mcus[cid].append(self._concatenate(np.array(blocks), (2, 1)))
+                    mcus[cid].append(np.hstack(np.array(blocks)))
                 elif n_blocks == 4:
                     mcus[cid].append(self._concatenate(np.array(blocks), (2, 2)))
             if (
@@ -662,7 +672,7 @@ class JPEG():
         # Concatenate blocks
         cdata = {}
         for cid, meta in cmeta.items():
-            w, h = image_width // mcu_size[0], image_height // mcu_size[1]
+            w, h = image_width // mcu_shape[1], image_height // mcu_shape[0]
             cdata[cid] = self._concatenate(mcus[cid], (w, h))
             if cid > 1 and subsampling != "4:4:4":
                 # Upsample
@@ -675,6 +685,8 @@ class JPEG():
         # YCbCr to RGB
         image_data = self._rgb(image_data)
         image_data = image_data.round().clip(0, 255).astype(np.uint8)
+        # Crop
+        image_data = image_data[:image_height, :image_width]
         # Padding
         remaining_bits = bitreader.read()
         if len(remaining_bits) > 7:
