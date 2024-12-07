@@ -203,10 +203,11 @@ class JPEG():
         for idx, vals in enumerate(table):
             length = idx + 1
             for val in vals:
+                code_bin = ("0" + bin(code)[2:])[-length:]
                 if mode == "decode":
-                    data[("0" + bin(code)[2:])[-length:]] = val
+                    data[code_bin] = val
                 else:
-                    data[val] = ("0" + bin(code)[2:])[-length:]
+                    data[val] = code_bin
                 code += 1
             code *= 2
         return data
