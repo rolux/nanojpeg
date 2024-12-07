@@ -210,6 +210,11 @@ class JPEG():
             code *= 2
         return data
 
+    def _huffman_encode(self, val, table):
+        if val not in table:
+            raise ValueError("No Huffman code for value {val}.")
+        return [int(c) for c in table[val]]
+
     def _huffman_decode(self, bitreader, table, max_len=16):
         code = ""
         while len(code) <= max_len:
@@ -224,7 +229,7 @@ class JPEG():
         Negative dc values are bit-flipped.
         """
         dc = [] if dc == 0 else self._int_to_bits(dc)
-        size = [int(c) for c in table[len(dc)]]
+        size = self._huffman_encode(len(dc), table)
         bitwriter.write(size + dc, stuff=True)
 
     def _decode_dc(self, bitreader, table):
@@ -239,7 +244,7 @@ class JPEG():
         ( 0, 0) is EOB (End of Block)   -> All zeros until end of block
         """
         def runlength_encode(run, size, val):
-            runsize = [int(c) for c in table[run * 16 + size]]
+            runsize = self._huffman_encode(run * 16 + size, table)
             bitwriter.write(runsize + val, stuff=True)
         nonzero = np.nonzero(ac)[0]
         eob = 0 if nonzero.size == 0 else np.max(nonzero) + 1
