@@ -309,18 +309,14 @@ class JPEG():
         restart_interval=None, payload=None
     ):
 
-        if quality < 5 or quality > 95 or quality % 5:
-            raise ValueError("Quality must be a multiple of 5 between 5 and 95.")
-        if subsampling not in ("4:4:4", "4:2:2", "4:2:0"):
-            raise ValueError("Subsampling must be 4:4:4, 4:2:2 or 4:2:0.")
-        if payload:
-            payload = struct.pack(">HH", 0xFFE0, len(payload) + 2) + payload
-            payload_reader = self._BitReader(payload)
-
         image_data = np.array(image_data)
         image_height, image_width = image_data.shape[:2]
         if image_height % 16 or image_width % 16:
             raise ValueError("Image width and height must be multiples of 16.")
+        if quality < 5 or quality > 95 or quality % 5:
+            raise ValueError("Quality must be a multiple of 5 between 5 and 95.")
+        if subsampling not in ("4:4:4", "4:2:2", "4:2:0"):
+            raise ValueError("Subsampling must be 4:4:4, 4:2:2 or 4:2:0.")
         h = {"4:4:4": 1, "4:2:2": 2, "4:2:0": 2}[subsampling]
         v = {"4:4:4": 1, "4:2:2": 1, "4:2:0": 2}[subsampling]
         cmeta = {
@@ -329,6 +325,10 @@ class JPEG():
             2: {"sfh": 1, "sfv": 1, "qtid": 1, "htdc": 1, "htac": 1}, # Cb
             3: {"sfh": 1, "sfv": 1, "qtid": 1, "htdc": 1, "htac": 1}  # Cr
         }
+        if payload:
+            payload = struct.pack(">HH", 0xFFE0, len(payload) + 2) + payload
+            payload_reader = self._BitReader(payload)
+
         # RGB to YCbCr
         image_data = self._ycbcr(image_data)
         # Shift
