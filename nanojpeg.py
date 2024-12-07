@@ -223,7 +223,7 @@ class JPEG():
             code += str(bitreader.read(1)[0])
             if code in table:
                 return table[code]
-        raise ValueError(f"Huffman code length is larger than {max_len} ({code})")
+        raise ValueError(f"Huffman code {code} is longer than {max_len}.")
 
     def _encode_dc(self, dc, bitwriter, table):
         """
