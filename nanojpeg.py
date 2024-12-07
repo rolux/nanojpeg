@@ -98,9 +98,11 @@ class JPEG():
                 if stuff and self._data[-1:] == b"\xFF":
                     self._data += b"\x00"
                 self._bits = self._bits[8:]
+            return self
         def pad_to_next_byte(self, padding, stuff=False):
             if mod := len(self._bits) % 8:
                 self.write((8 - mod) * [padding], stuff)
+            return self
         def get_data(self):
             return self._data
 
@@ -125,9 +127,11 @@ class JPEG():
             self._index += i
             if self._index < 0 or self._index > 8 * len(self._data) - 1:
                 raise ValueError(f"Tried to seek to index {self._index}, which is out of bounds.")
+            return self
         def seek_to_next_byte(self):
             if mod := self._index % 8:
                 self.seek(8 - mod)
+            return self
 
     def _bits_to_int(self, bits):
         is_negative = bits[0] == 0
@@ -391,8 +395,7 @@ class JPEG():
                 bitwriter.write(self._int_to_bits(0xFFD0 + restart_counter))
                 prev_dc = {cid: None for cid in cids}
 
-        bitwriter.pad_to_next_byte(1)
-        scan_data = bitwriter.get_data()
+        scan_data = bitwriter.pad_to_next_byte(1).get_data()
 
         with open(filename, "wb") as f:
 
