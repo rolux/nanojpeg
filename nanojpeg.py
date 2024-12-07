@@ -136,16 +136,12 @@ class JPEG():
         val = 0
         for bit in bits:
             val = (val << 1) | bit
-        if is_negative:
-            val *= -1
-        return val
+        return val * -1 if is_negative else val
 
     def _int_to_bits(self, val):
         is_negative = val < 0
         bits = [int(bit) for bit in bin(val)[2 + is_negative:]]
-        if is_negative:
-            bits = [1 - bit for bit in bits]
-        return bits
+        return [1 - bit for bit in bits] if is_negative else bits
 
     def _concatenate(self, arrs, wh):
         w, h = wh
