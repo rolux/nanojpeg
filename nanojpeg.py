@@ -363,10 +363,10 @@ class JPEG():
         htyac = self._parse_huffman_table(self._htyac, mode="encode")
         htcdc = self._parse_huffman_table(self._htcdc, mode="encode")
         htcac = self._parse_huffman_table(self._htcac, mode="encode")
-        mcu_block_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
-        n_mcu_blocks = image_width // mcu_block_size[0] * image_height // mcu_block_size[1]
+        mcu_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
+        n_mcus = image_width // mcu_size[0] * image_height // mcu_size[1]
 
-        for i_mcu in range(n_mcu_blocks):
+        for i_mcu in range(n_mcus):
             for cid, meta in cmeta.items():
                 n_blocks = meta["sfh"] * meta["sfv"]
                 for i_block in range(n_blocks):
@@ -393,7 +393,7 @@ class JPEG():
                     ht = (htyac, htcac)[meta["htdc"]]
                     self._encode_ac(ac, bitwriter, ht)
             if (
-                restart_interval and i_mcu < n_mcu_blocks - 1
+                restart_interval and i_mcu < n_mcus - 1
                 and i_mcu % restart_interval == restart_interval - 1
             ):
                 bitwriter.pad_to_next_byte(1, stuff=True)
@@ -599,11 +599,11 @@ class JPEG():
         bitreader = self._BitReader(scan_data)
         cids = cmeta.keys()
         prev_dc = {cid: None for cid in cids}
-        mcu_blocks = {cid: [] for cid in cids}
-        mcu_block_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
-        n_mcu_blocks = image_width // mcu_block_size[0] * image_height // mcu_block_size[1]
+        mcus = {cid: [] for cid in cids}
+        mcu_size = {"4:4:4": (8, 8), "4:2:2": (16, 8), "4:2:0": (16, 16)}[subsampling]
+        n_mcus = image_width // mcu_size[0] * image_height // mcu_size[1]
 
-        for i_mcu in range(n_mcu_blocks):
+        for i_mcu in range(n_mcus):
             for cid, meta in cmeta.items():
                 blocks = []
                 n_blocks = meta["sfh"] * meta["sfv"]
@@ -631,13 +631,13 @@ class JPEG():
                     blocks.append(block)
                 # Concatenate to MCU block
                 if n_blocks == 1:
-                    mcu_blocks[cid].append(blocks[0])
+                    mcus[cid].append(blocks[0])
                 elif n_blocks == 2:
-                    mcu_blocks[cid].append(self._concatenate(np.array(blocks), (2, 1)))
+                    mcus[cid].append(self._concatenate(np.array(blocks), (2, 1)))
                 elif n_blocks == 4:
-                    mcu_blocks[cid].append(self._concatenate(np.array(blocks), (2, 2)))
+                    mcus[cid].append(self._concatenate(np.array(blocks), (2, 2)))
             if (
-                restart_interval and i_mcu < n_mcu_blocks - 1
+                restart_interval and i_mcu < n_mcus - 1
                 and i_mcu % restart_interval == restart_interval - 1
             ):
                 bitreader.seek_to_next_byte()
@@ -662,8 +662,8 @@ class JPEG():
         # Concatenate blocks
         cdata = {}
         for cid, meta in cmeta.items():
-            w, h = image_width // mcu_block_size[0], image_height // mcu_block_size[1]
-            cdata[cid] = self._concatenate(mcu_blocks[cid], (w, h))
+            w, h = image_width // mcu_size[0], image_height // mcu_size[1]
+            cdata[cid] = self._concatenate(mcus[cid], (w, h))
             if cid > 1 and subsampling != "4:4:4":
                 # Upsample
                 sfh, sfv = cmeta[1]["sfh"], cmeta[1]["sfv"]
