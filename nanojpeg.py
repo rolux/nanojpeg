@@ -264,8 +264,7 @@ class JPEG():
                 runlength_encode(run, size, val)
                 run = 0
 
-    def _decode_ac(self, bitreader, table):
-        n = 63
+    def _decode_ac(self, bitreader, table, n=63):
         ac = []
         while len(ac) < n:
             runsize = self._huffman_decode(bitreader, table)
