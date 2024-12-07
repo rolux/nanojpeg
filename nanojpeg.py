@@ -593,7 +593,7 @@ class JPEG():
                 metadata["markers"].append(marker_name)
 
         # Decode scan data
-        parts = re.split(b"([\xFF\xD0-\xD7])", scan_data)
+        parts = re.split(b"(\xFF[\xD0-\xD7])", scan_data)
         scan_data = b"".join(re.sub(b"\xFF\x00", b"\xFF", part) for part in parts)
         bitreader = self._BitReader(scan_data)
         cids = cmeta.keys()
