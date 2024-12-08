@@ -341,9 +341,9 @@ class JPEG():
         # Pad
         image_data = self._pad(image_data, mcu_shape)
         # RGB to YCbCr
-        image_data = self._ycbcr(image_data)
+        image_data = self._ycbcr(image_data) # np.float64
         # Shift
-        image_data = image_data.astype(np.int32) - 128
+        image_data = image_data - 128
         # Split into color components
         cids = cmeta.keys()
         cdata = {cid: image_data[:, :, i] for i, cid in enumerate(cids)}
@@ -385,7 +385,7 @@ class JPEG():
                     block = self._dct(block)
                     # Quantize
                     qt = (self._qty[quality], self._qtc[quality])[meta["qtid"]]
-                    block = (block / qt).round().astype(np.int32)
+                    block = (block / qt).round().astype(np.int64)
                     # Encode payload
                     if payload:
                         block = self._encode_payload(block, payload_reader)
@@ -626,14 +626,14 @@ class JPEG():
                     if return_metadata:
                         metadata["ac"] += list(ac)
                         metadata["nz"] += [np.count_nonzero(ac)]
-                    block = np.array([dc] + ac).reshape((8, 8))
+                    block = np.array([dc] + ac).reshape((8, 8)).astype(np.int64)
                     # Dezigzag
                     block = self._dezigzag(block)
                     # Decode Payload
                     if return_payload:
                         self._decode_payload(block, payload_writer)
                     # Dequantize
-                    block = (block * qt[meta["qtid"]])
+                    block = (block.astype(np.float64) * qt[meta["qtid"]])
                     # Inverse DCT
                     block = self._idct(block)
                     blocks.append(block)
