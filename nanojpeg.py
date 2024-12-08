@@ -149,7 +149,7 @@ class JPEG():
         return [1 - bit for bit in bits] if is_negative else bits
 
     def _grid(self, arrs, grid_shape):
-        """Arrange w*h arrays of the same shape in a w-by-h grid"""
+        """Arrange h*w arrays of the same shape in a h*w grid"""
         h, w = grid_shape
         rows = np.array([np.hstack(arrs[i * w:(i + 1) * w]) for i in range(h)])
         return np.vstack(rows)
