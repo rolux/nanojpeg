@@ -148,9 +148,9 @@ class JPEG():
         bits = [int(bit) for bit in bin(val)[2 + is_negative:]]
         return [1 - bit for bit in bits] if is_negative else bits
 
-    def _grid(self, arrs, wh):
+    def _grid(self, arrs, grid_shape):
         """Arrange w*h arrays of the same shape in a w-by-h grid"""
-        w, h = wh
+        h, w = grid_shape
         rows = np.array([np.hstack(arrs[i * w:(i + 1) * w]) for i in range(h)])
         return np.vstack(rows)
 
@@ -672,8 +672,8 @@ class JPEG():
         # Concatenate blocks
         cdata = {}
         for cid, meta in cmeta.items():
-            w, h = image_width // mcu_shape[1], image_height // mcu_shape[0]
-            cdata[cid] = self._grid(mcus[cid], (w, h))
+            h, w = image_height // mcu_shape[0], image_width // mcu_shape[1]
+            cdata[cid] = self._grid(mcus[cid], (h, w))
             if cid > 1 and subsampling != "4:4:4":
                 # Upsample
                 sfh, sfv = cmeta[1]["sfh"], cmeta[1]["sfv"]
