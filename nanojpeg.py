@@ -607,7 +607,7 @@ class JPEG():
         parts = re.split(b"(\xFF[\xD0-\xD7])", scan_data)
         scan_data = b"".join(re.sub(b"\xFF\x00", b"\xFF", part) for part in parts)
         bitreader = self._BitReader(scan_data)
-        cids = cmeta.keys()
+        cids = list(cmeta.keys())
         prev_dc = {cid: None for cid in cids}
         mcus = {cid: [] for cid in cids}
         mcu_shape = {"4:4:4": (8, 8), "4:2:2": (8, 16), "4:2:0": (16, 16)}[subsampling]
@@ -674,9 +674,9 @@ class JPEG():
         for cid, meta in cmeta.items():
             h, w = image_height // mcu_shape[0], image_width // mcu_shape[1]
             cdata[cid] = self._grid(mcus[cid], (h, w))
-            if cid > 1 and subsampling != "4:4:4":
+            if cid != cids[0] and subsampling != "4:4:4":
                 # Upsample
-                sfh, sfv = cmeta[1]["sfh"], cmeta[1]["sfv"]
+                sfh, sfv = cmeta[cids[0]]["sfh"], cmeta[cids[0]]["sfv"]
                 cdata[cid] = self._resample(cdata[cid], (sfh, sfv))
         # Join color components
         image_data = np.dstack([cdata[cid] for cid in cids])
