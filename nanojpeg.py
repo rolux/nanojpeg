@@ -148,12 +148,6 @@ class JPEG():
         bits = [int(bit) for bit in bin(val)[2 + is_negative:]]
         return [1 - bit for bit in bits] if is_negative else bits
 
-    def _grid(self, arrs, grid_shape):
-        """Arrange h*w arrays of the same shape in a h*w grid"""
-        h, w = grid_shape
-        rows = np.array([np.hstack(arrs[i * w:(i + 1) * w]) for i in range(h)])
-        return np.vstack(rows)
-
     def _pad(self, arr, block_shape):
         """Pad array to a multiple of block shape by repeating the last element"""
         for axis in (1, 0):
@@ -602,9 +596,10 @@ class JPEG():
             if return_metadata:
                 metadata["markers"].append(marker_name)
 
-        # Decode scan data
+        # Remove null bytes
         parts = re.split(b"(\xFF[\xD0-\xD7])", scan_data)
         scan_data = b"".join(re.sub(b"\xFF\x00", b"\xFF", part) for part in parts)
+        # Decode scan data
         bitreader = self._BitReader(scan_data)
         cids = list(cmeta.keys())
         prev_dc = {cid: 0 for cid in cids}
@@ -643,7 +638,7 @@ class JPEG():
                 elif n_blocks == 2:
                     mcus[cid].append(np.hstack(blocks))
                 elif n_blocks == 4:
-                    mcus[cid].append(self._grid(blocks, (2, 2)))
+                    mcus[cid].append(np.block([blocks[:2], blocks[2:]]))
             if (
                 restart_interval and i_mcu < n_mcus - 1
                 and i_mcu % restart_interval == restart_interval - 1
@@ -671,7 +666,7 @@ class JPEG():
         cdata = {}
         for cid, meta in cmeta.items():
             h, w = image_height // mcu_shape[0], image_width // mcu_shape[1]
-            cdata[cid] = self._grid(mcus[cid], (h, w))
+            cdata[cid] = np.block([mcus[cid][y * w:(y + 1) * w] for y in range(h)])
             if cid != cids[0] and subsampling != "4:4:4":
                 # Upsample
                 sfh, sfv = cmeta[cids[0]]["sfh"], cmeta[cids[0]]["sfv"]
