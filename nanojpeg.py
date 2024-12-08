@@ -369,7 +369,7 @@ class JPEG():
                 ]
         # Encode scan data
         bitwriter = self._BitWriter()
-        prev_dc = {cid: None for cid in cids}
+        prev_dc = {cid: 0 for cid in cids}
         htydc = self._parse_huffman_table(self._htydc, mode="encode")
         htyac = self._parse_huffman_table(self._htyac, mode="encode")
         htcdc = self._parse_huffman_table(self._htcdc, mode="encode")
@@ -394,8 +394,7 @@ class JPEG():
                     dc, ac = block[0], block[1:]
                     # Huffman (DC)
                     curr_dc = dc
-                    if prev_dc[cid] is not None:
-                        dc = dc - prev_dc[cid]
+                    dc = dc - prev_dc[cid]
                     prev_dc[cid] = curr_dc
                     ht = (htydc, htcdc)[meta["htdc"]]
                     self._encode_dc(dc, bitwriter, ht)
@@ -409,7 +408,7 @@ class JPEG():
                 bitwriter.pad_to_next_byte(1, stuff=True)
                 restart_counter = i_mcu // restart_interval % 8
                 bitwriter.write(self._int_to_bits(0xFFD0 + restart_counter))
-                prev_dc = {cid: None for cid in cids}
+                prev_dc = {cid: 0 for cid in cids}
 
         scan_data = bitwriter.pad_to_next_byte(1).get_data()
 
@@ -608,7 +607,7 @@ class JPEG():
         scan_data = b"".join(re.sub(b"\xFF\x00", b"\xFF", part) for part in parts)
         bitreader = self._BitReader(scan_data)
         cids = list(cmeta.keys())
-        prev_dc = {cid: None for cid in cids}
+        prev_dc = {cid: 0 for cid in cids}
         mcus = {cid: [] for cid in cids}
         mcu_shape = {"4:4:4": (8, 8), "4:2:2": (8, 16), "4:2:0": (16, 16)}[subsampling]
         n_mcus = int(np.ceil(image_height / mcu_shape[0]) * np.ceil(image_width / mcu_shape[1]))
@@ -620,8 +619,7 @@ class JPEG():
                 for i_block in range(n_blocks):
                     # Huffman (DC)
                     dc = self._decode_dc(bitreader, ht[(0, meta["htdc"])])
-                    if prev_dc[cid] is not None:
-                        dc = prev_dc[cid] + dc
+                    dc = prev_dc[cid] + dc
                     prev_dc[cid] = dc
                     # Huffman/RLE (AC)
                     ac = self._decode_ac(bitreader, ht[(1, meta["htac"])])
@@ -664,7 +662,7 @@ class JPEG():
                         )
                 if return_metadata:
                     metadata["markers"].insert(-1, self._marker_names[restart_marker])
-                prev_dc = {cid: None for cid in cids}
+                prev_dc = {cid: 0 for cid in cids}
 
         if return_metadata:
             metadata["ac"] = dict(zip(*np.unique(metadata["ac"], return_counts=True)))
