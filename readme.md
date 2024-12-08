@@ -48,7 +48,6 @@ original = np.array(Image.open("nanojpeg.jpg"))
 jpeg.encode("nanojpeg re-encoded.jpg", original)
 
 # Encode and decode a payload
-original = jpeg.decode("nanojpeg re-encoded.jpg")
 payload = open("test q=75 s=420.jpg", "rb").read()
 jpeg.encode("nanojpeg re-encoded with payload.jpg", original, payload=payload)
 image, payload = jpeg.decode("nanojpeg re-encoded with payload.jpg", return_payload=True)
