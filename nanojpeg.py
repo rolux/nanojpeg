@@ -30,19 +30,33 @@ class JPEG():
             0xFFE0 + i: f"APP{i} (Application)" for i in range(16)
         })
         self._marker_values = {v: k for k, v in self._marker_names.items()}
-        # Quantization tables (luminance), from PIL/libjpeg
-        self._qty = {}
-        # Quantization tables (chrominance), from PIL/libjpeg
-        self._qtc = {}
-        qt = np.load("qt.npy") # (19, 2, 8, 8)
-        for idx, tables in enumerate(qt):
-            quality = (idx + 1) * 5
-            self._qty[quality], self._qtc[quality] = tables
-        # Huffman table (luminance DC), from the JPEG Specification
+        # Quantization table (luminance)
+        self._qty = [
+            [16,  11,  10,  16,  24,  40,  51,  61],
+            [12,  12,  14,  19,  26,  58,  60,  55],
+            [14,  13,  16,  24,  40,  57,  69,  56],
+            [14,  17,  22,  29,  51,  87,  80,  62],
+            [18,  22,  37,  56,  68, 109, 103,  77],
+            [24,  35,  55,  64,  81, 104, 113,  92],
+            [49,  64,  78,  87, 103, 121, 120, 101],
+            [72,  92,  95,  98, 112, 100, 103,  99]
+        ]
+        # Quantization table (chrominance)
+        self._qtc = [
+            [17,  18,  24,  47,  99,  99,  99,  99],
+            [18,  21,  26,  66,  99,  99,  99,  99],
+            [24,  26,  56,  99,  99,  99,  99,  99],
+            [47,  66,  99,  99,  99,  99,  99,  99],
+            [99,  99,  99,  99,  99,  99,  99,  99],
+            [99,  99,  99,  99,  99,  99,  99,  99],
+            [99,  99,  99,  99,  99,  99,  99,  99],
+            [99,  99,  99,  99,  99,  99,  99,  99]
+        ]
+        # Huffman table (luminance DC)
         self._htydc = (
             [], [0], [1, 2, 3, 4, 5], [6], [7], [8], [9], [10], [11], [], [], [], [], [], [], []
         )
-        # Huffman table (luminance AC), from the JPEG Specification
+        # Huffman table (luminance AC)
         self._htyac = (
             [], [1, 2], [3], [0, 4, 17], [5, 18, 33], [49, 65], [6, 19, 81, 97], [7, 34, 113], [20,
             50, 129, 145, 161], [8, 35, 66, 177, 193], [21, 82, 209, 240], [36, 51, 98, 114], [],
@@ -54,11 +68,11 @@ class JPEG():
             198, 199, 200, 201, 202, 210, 211, 212, 213, 214, 215, 216, 217, 218, 225, 226, 227,
             228, 229, 230, 231, 232, 233, 234, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250]
         )
-        # Huffman table (chrominance DC), from the JPEG Specification
+        # Huffman table (chrominance DC)
         self._htcdc = (
             [], [0, 1, 2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [], [], [], [], []
         )
-        # Huffman table (chrominance AC), from the JPEG Specification
+        # Huffman table (chrominance AC)
         self._htcac = (
             [], [0, 1], [2], [3, 17], [4, 5, 33, 49], [6, 18, 65, 81], [7, 97, 113], [19, 34, 50,
             129], [8, 20, 66, 145, 161, 177, 193], [9, 35, 51, 82, 240], [21, 98, 114, 209], [10,
@@ -148,6 +162,26 @@ class JPEG():
         bits = [int(bit) for bit in bin(val)[2 + is_negative:]]
         return [1 - bit for bit in bits] if is_negative else bits
 
+    def _get_quantization_table(self, table, quality):
+        factor = (50 / quality) if quality < 50 else 2 - 2 * quality / 100
+        return (np.array(table) * factor).round().clip(0, 255).astype(np.uint8)
+
+    def _parse_huffman_table(self, table, mode):
+        assert(mode in ("decode", "encode"))
+        data = {}
+        code = 0
+        for idx, vals in enumerate(table):
+            length = idx + 1
+            for val in vals:
+                code_bin = ("0" + bin(code)[2:])[-length:]
+                if mode == "decode":
+                    data[code_bin] = val
+                else:
+                    data[val] = code_bin
+                code += 1
+            code *= 2
+        return data
+
     def _pad(self, arr, block_shape):
         """Pad array to a multiple of block shape by repeating the last element"""
         for axis in (1, 0):
@@ -199,22 +233,6 @@ class JPEG():
 
     def _idct(self, arr):
         return fftpack.idct(fftpack.idct(arr.T, norm="ortho").T, norm="ortho")
-
-    def _parse_huffman_table(self, table, mode):
-        assert(mode in ("decode", "encode"))
-        data = {}
-        code = 0
-        for idx, vals in enumerate(table):
-            length = idx + 1
-            for val in vals:
-                code_bin = ("0" + bin(code)[2:])[-length:]
-                if mode == "decode":
-                    data[code_bin] = val
-                else:
-                    data[val] = code_bin
-                code += 1
-            code *= 2
-        return data
 
     def _huffman_encode(self, val, table):
         if val not in table:
@@ -315,8 +333,8 @@ class JPEG():
 
         image_data = np.array(image_data)
         image_height, image_width = image_data.shape[:2]
-        if quality < 5 or quality > 95 or quality % 5:
-            raise ValueError("Quality must be a multiple of 5 between 5 and 95.")
+        if quality < 1 or quality > 100:
+            raise ValueError("Quality must be between 1 and 100.")
         if subsampling not in ("4:4:4", "4:2:2", "4:2:0"):
             raise ValueError("Subsampling must be 4:4:4, 4:2:2 or 4:2:0.")
         h = {"4:4:4": 1, "4:2:2": 2, "4:2:0": 2}[subsampling]
@@ -378,7 +396,8 @@ class JPEG():
                     # DCT
                     block = self._dct(block)
                     # Quantize
-                    qt = (self._qty[quality], self._qtc[quality])[meta["qtid"]]
+                    table = (self._qty, self._qtc)[meta["qtid"]]
+                    qt = self._get_quantization_table(table, quality)
                     block = (block / qt).round().astype(np.int64)
                     # Encode payload
                     if payload:
@@ -420,8 +439,9 @@ class JPEG():
             write_segment("SOI (Start of image)")
 
             marker_name = "DQT (Define quantization table)"
-            for i, qt in enumerate((self._qty[quality], self._qtc[quality])):
+            for i, table in enumerate((self._qty, self._qtc)):
                 # Using struct.pack(">B", x) rather than bytes([x]) for consistency and readablility
+                qt = self._get_quantization_table(table, quality)
                 precision, table_id = 0, i
                 data = struct.pack(">B", precision * 16 + table_id)
                 data += struct.pack(">" + 64 * "B", *qt.reshape((64,)))
@@ -436,14 +456,14 @@ class JPEG():
             write_segment(marker_name, data)
 
             marker_name = "DHT (Define Huffman table)"
-            for i, ht in enumerate((self._htydc, self._htyac, self._htcdc, self._htcac)):
+            for i, table in enumerate((self._htydc, self._htyac, self._htcdc, self._htcac)):
                 table_class = i % 2
                 table_id = i // 2
                 data = struct.pack(">B", table_class * 16 + table_id)
-                n_codes = [len(vals) for vals in ht]
+                n_codes = [len(vals) for vals in table]
                 data += struct.pack(">" + 16 * "B", *n_codes)
                 for i, n in enumerate(n_codes):
-                    data += struct.pack(">" + n * "B", *ht[i])
+                    data += struct.pack(">" + n * "B", *table[i])
                 write_segment(marker_name, data)
 
             marker_name = "DRI (Define restart interval)"
