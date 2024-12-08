@@ -44,7 +44,7 @@ print(metadata["qt"])
 # Work with an existing image file
 import numpy as np
 from PIL import Image
-original = np.array(Image.open("nanojpeg.jpg"))
+original = np.array(Image.open("nanojpeg.png"))
 jpeg.encode("nanojpeg re-encoded.jpg", original)
 
 # Encode and decode a payload
