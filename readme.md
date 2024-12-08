@@ -74,6 +74,7 @@ open("nanojpeg payload.txt", "wb").write(payload)
 ### The JPEG encoding TL;DR:
 
 ```
+- Pad to multiple of MCU shape
 - Convert from RGB to YCbCr
 - Shift by -128
 - Split into color components
@@ -90,8 +91,10 @@ open("nanojpeg payload.txt", "wb").write(payload)
             - Encode 1 DC coefficient (Huffman)
             - Encode 63 AC coefficients (Huffman/RLE)
             - Add DC and AC coefficients to scan data
-- Pad the scan data with 1 bits to the next full byte
-- In the scan data, insert null bytes after FF bytes
+        - If restart interval reached:
+            - Pad scan data with 1-bits to next full byte
+            - Add restart marker to scan data
+- Pad scan data with 1-bits to next full byte
 - Write markers, metadata segments and scan data
 
 An MCU (Minimum Coded Unit) is a group of blocks covering the same image area.
@@ -99,11 +102,16 @@ For example, with 4:2:0 subsampling, it contains 4 Y blocks, 1 Cr block and
 1 Cb block. Cr and Cb must be downsampled accordingly.
 
 The scan data is encoded bitwise. Negative values are bit-flipped.
-DC coefficient: Hufmann-encoded size in bits, then the difference from the
-previous value in the same component.
-AC coefficients: Hufmann-encoded (4 bits runlength, 4 bits size in bits),
-then the non-zero value. Runlength is the number of preceding zeros.
+DC coefficient: either the value - if at the start of a component or restart
+interval - or the difference from the previous value in the same component,
+prefixed with the Hufmann-encoded size in bits.
+AC coefficients: each non-zero value, prefixed with Hufmann-encoded (4 bits
+runlength, 4 bits size in bits). Runlength is the number of preceding zeros.
 (15, 0) = 16 zeros, (0, 0) = all zeros until the end of the block.
+
+In the scan data - including all padding, but excluding any restart markers -
+null bytes are inserted after FF bytes.
+
 ```
 
 [^1]: There are several other educational python implementations available on GitHub, but most of them turned out to be incomplete, convoluted or confused. This one attempts to be more pythonic, i.e. simple, idiomatic and readable. It depends on numpy (for array manipulation) and scipy (for bicubic interpolation and discrete cosine transform), the rest is pure python.
