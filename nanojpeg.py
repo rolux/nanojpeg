@@ -163,6 +163,7 @@ class JPEG():
         return [1 - bit for bit in bits] if is_negative else bits
 
     def _get_quantization_table(self, table, quality):
+        # see https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/src/jcparam.c#L142
         factor = (50 / quality) if quality < 50 else 2 - 2 * quality / 100
         return (np.array(table) * factor).round().clip(0, 255).astype(np.uint8)
 
