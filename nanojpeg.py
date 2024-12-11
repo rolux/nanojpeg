@@ -384,6 +384,8 @@ class JPEG():
         # Encode scan data
         bitwriter = self._BitWriter()
         prev_dc = {cid: 0 for cid in cids}
+        qty = self._get_quantization_table(self._qty, quality)
+        qtc = self._get_quantization_table(self._qty, quality)
         htydc = self._parse_huffman_table(self._htydc, mode="encode")
         htyac = self._parse_huffman_table(self._htyac, mode="encode")
         htcdc = self._parse_huffman_table(self._htcdc, mode="encode")
@@ -398,8 +400,7 @@ class JPEG():
                     # DCT
                     block = self._dct(block)
                     # Quantize
-                    table = (self._qty, self._qtc)[meta["qtid"]]
-                    qt = self._get_quantization_table(table, quality)
+                    qt = (qty, qtc)[meta["qtid"]]
                     block = (block / qt).round().astype(np.int64)
                     # Encode payload
                     if payload:
