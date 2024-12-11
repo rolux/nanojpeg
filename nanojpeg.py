@@ -166,7 +166,7 @@ class JPEG():
     def _get_quantization_table(self, table, quality):
         # see https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/src/jcparam.c#L142
         factor = (50 / quality) if quality < 50 else 2 - 2 * quality / 100
-        return (np.array(table) * factor).round().clip(0, 255).astype(np.uint8)
+        return (np.array(table) * factor).round().clip(1, 255).astype(np.uint8)
 
     def _parse_huffman_table(self, table, mode):
         assert(mode in ("decode", "encode"))
