@@ -687,7 +687,8 @@ class JPEG():
         # Concatenate blocks
         cdata = {}
         for cid, meta in cmeta.items():
-            h, w = image_height // mcu_shape[0], image_width // mcu_shape[1]
+            h = int(np.ceil(image_height / mcu_shape[0]))
+            w = int(np.ceil(image_width / mcu_shape[1]))
             cdata[cid] = np.block([mcus[cid][y * w:(y + 1) * w] for y in range(h)])
             if cid != cids[0] and subsampling != "4:4:4":
                 # Upsample
