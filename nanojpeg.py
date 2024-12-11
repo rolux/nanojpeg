@@ -442,9 +442,8 @@ class JPEG():
             write_segment("SOI (Start of image)")
 
             marker_name = "DQT (Define quantization table)"
-            for i, table in enumerate((self._qty, self._qtc)):
+            for i, qt in enumerate((qty, qtc)):
                 # Using struct.pack(">B", x) rather than bytes([x]) for consistency and readablility
-                qt = self._get_quantization_table(table, quality)
                 precision, table_id = 0, i
                 data = struct.pack(">B", precision * 16 + table_id)
                 data += struct.pack(">" + 64 * "B", *qt.reshape((64,)))
@@ -459,14 +458,14 @@ class JPEG():
             write_segment(marker_name, data)
 
             marker_name = "DHT (Define Huffman table)"
-            for i, table in enumerate((self._htydc, self._htyac, self._htcdc, self._htcac)):
+            for i, ht in enumerate((self._htydc, self._htyac, self._htcdc, self._htcac)):
                 table_class = i % 2
                 table_id = i // 2
                 data = struct.pack(">B", table_class * 16 + table_id)
-                n_codes = [len(vals) for vals in table]
+                n_codes = [len(vals) for vals in ht]
                 data += struct.pack(">" + 16 * "B", *n_codes)
                 for i, n in enumerate(n_codes):
-                    data += struct.pack(">" + n * "B", *table[i])
+                    data += struct.pack(">" + n * "B", *ht[i])
                 write_segment(marker_name, data)
 
             marker_name = "DRI (Define restart interval)"
