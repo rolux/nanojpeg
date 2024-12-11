@@ -238,7 +238,7 @@ class JPEG():
 
     def _huffman_encode(self, val, table):
         if val not in table:
-            raise ValueError("No Huffman code for value {val}.")
+            raise ValueError(f"No Huffman code for value {val}.")
         return [int(c) for c in table[val]]
 
     def _huffman_decode(self, bitreader, table, max_len=16):
