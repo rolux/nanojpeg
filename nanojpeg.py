@@ -14,6 +14,7 @@ class JPEG():
     """
 
     def __init__(self):
+        # Default quantization and Huffman tables from https://www.w3.org/Graphics/JPEG/itu-t81.pdf
         self._marker_names = {
             0xFFC0: "SOF (Start of frame)",
             0xFFC4: "DHT (Define Huffman table)",
