@@ -722,4 +722,6 @@ class _JPEG():
         return (image_data, metadata) if return_metadata else image_data
 
 
-jpeg = _JPEG()
+_jpeg = _JPEG()
+encode, decode = _jpeg.encode, _jpeg.decode
+__all__ = ["encode", "decode"]
