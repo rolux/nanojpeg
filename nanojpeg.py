@@ -217,17 +217,17 @@ class JPEG():
     def _ycbcr(self, rgb):
         r, g, b = np.transpose(rgb, (2, 0, 1))
         return np.dstack((
-             0.299  * r + 0.587  * g + 0.114  * b,
-            -0.1687 * r - 0.3313 * g + 0.5    * b + 128,
-             0.5    * r - 0.4187 * g - 0.0813 * b + 128
+             0.299    * r + 0.587    * g + 0.114    * b,
+            -0.168736 * r - 0.331264 * g + 0.5      * b + 128,
+             0.5      * r - 0.418688 * g - 0.081312 * b + 128
         ))
 
     def _rgb(self, ycbcr):
         y, cb, cr = np.transpose(ycbcr, (2, 0, 1))
         return np.dstack((
-            y                        + 1.402   * (cr - 128),
-            y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128),
-            y + 1.772   * (cb - 128)
+            y                         + 1.402    * (cr - 128),
+            y - 0.344136 * (cb - 128) - 0.714136 * (cr - 128),
+            y + 1.772    * (cb - 128)
         ))
 
     def _dct(self, arr):
@@ -446,7 +446,7 @@ class JPEG():
                 # Using struct.pack(">B", x) rather than bytes([x]) for consistency and readablility
                 precision, table_id = 0, i
                 data = struct.pack(">B", precision * 16 + table_id)
-                data += struct.pack(">" + 64 * "B", *qt.reshape((64,)))
+                data += struct.pack(">" + 64 * "B", *self._zigzag(qt).reshape((64,)))
                 write_segment(marker_name, data)
 
             marker_name = "SOF (Start of frame)"
@@ -558,7 +558,7 @@ class JPEG():
                 elif marker_name == "DQT (Define quantization table)":
                     precision, table_id = read(">(B)")[0]
                     data = f.read(length - 1)
-                    qt[table_id] = np.array([int(v) for v in data]).reshape((8, 8))
+                    qt[table_id] = self._dezigzag(np.array(list(data))).reshape((8, 8))
                     if return_metadata:
                         metadata["qt"][table_id] = qt[table_id].tolist()
 
