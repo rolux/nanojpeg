@@ -4,7 +4,7 @@ import numpy as np
 from scipy import fftpack, interpolate
 
 
-class JPEG():
+class _JPEG():
 
     """
     This is a simple JPEG Encoder/Decoder, written in Python, mostly for educational purposes.
@@ -722,4 +722,4 @@ class JPEG():
         return (image_data, metadata) if return_metadata else image_data
 
 
-jpeg = JPEG()
+jpeg = _JPEG()
