@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 ```python
 # Test encoder and decoder
-from nanojpeg import jpeg
+import nanojpeg as jpeg
 original = [
     [(x, x * y // 256, y) for x in range(256)]
     for y in range(256)
