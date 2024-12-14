@@ -113,7 +113,7 @@ null bytes are inserted after FF bytes.
 
 ```
 
-[^1]: There are several other educational python implementations available on GitHub, but most of them turned out to be incomplete, convoluted or confused. This one attempts to be more pythonic, i.e. simple, idiomatic and readable. It depends on numpy (for array manipulation) and scipy (for bicubic interpolation and discrete cosine transform), the rest is pure python.
+[^1]: There are several other educational python implementations available on GitHub, but most of them are either incomplete, convoluted or confused. This one attempts to be more pythonic, i.e. simple, idiomatic and readable. It depends on numpy (for array manipulation) and scipy (for bicubic interpolation and discrete cosine transform), the rest is pure python.
 
 [^2]: See the [JPEG Specification](https://www.w3.org/Graphics/JPEG/itu-t81.pdf) or [Wikipedia](https://en.wikipedia.org/wiki/JPEG).
 
