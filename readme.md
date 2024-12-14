@@ -80,19 +80,19 @@ open("nanojpeg payload.txt", "wb").write(payload)
 - For each component:
     - Downsample (if needed)
     - Split into blocks of 8x8 pixels
-    - Group as MCUs (depending on subsampling)
-    - For each MCU:
-        - For each block:
-            - Apply Discrete Cosine Transform
-            - Quantize
-            - Encode payload (if present)
-            - Zigzag-reorder
-            - Encode 1 DC coefficient (Huffman)
-            - Encode 63 AC coefficients (Huffman/RLE)
-            - Add DC and AC coefficients to scan data
-        - If restart interval reached:
-            - Pad scan data with 1-bits to next full byte
-            - Add restart marker to scan data
+- Group blocks as MCUs (depending on subsampling)
+- For each MCU:
+    - For each block:
+        - Apply Discrete Cosine Transform
+        - Quantize
+        - Encode payload (if present)
+        - Zigzag-reorder
+        - Encode 1 DC coefficient (Huffman)
+        - Encode 63 AC coefficients (Huffman/RLE)
+        - Add DC and AC coefficients to scan data
+    - If restart interval reached:
+        - Pad scan data with 1-bits to next full byte
+        - Add restart marker to scan data
 - Pad scan data with 1-bits to next full byte
 - Write markers, metadata segments and scan data
 
