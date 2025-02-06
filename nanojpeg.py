@@ -415,7 +415,7 @@ class _JPEG():
                     ht = (htydc, htcdc)[meta["htdc"]]
                     self._encode_dc(dc, bitwriter, ht)
                     # Huffman/RLE (AC)
-                    ht = (htyac, htcac)[meta["htdc"]]
+                    ht = (htyac, htcac)[meta["htac"]]
                     self._encode_ac(ac, bitwriter, ht)
             if (
                 restart_interval and i_mcu < n_mcus - 1
